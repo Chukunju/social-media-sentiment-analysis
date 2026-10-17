@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from pipeline import build_dataset, slugify
 from insights import generate_report
 

@@ -1,47 +1,37 @@
-# Brand sentiment from YouTube comments
+﻿
+# What do people really say about a product?
 
-Type a brand or product and get sentiment shares, top comments, and an evidence-linked summary of recurring praise and complaints.
+Type any brand or product. The app reads YouTube comments, keeps the ones about the product itself, scores sentiment per aspect (design, price, battery and so on), and writes a report where every claim points to a real comment.
 
 ## How it works
 
-1. Collect: YouTube Data API. Searches "<brand> review", pulls up to 100 top comments from each of 8 videos, keeps English comments.
-2. Relevance and aspects: a Gemini classifier keeps comments that express an opinion about the brand or product and assigns each one an aspect (aspects are proposed per brand from a sample of its comments).
-3. Sentiment: pretrained cardiffnlp/twitter-roberta-base-sentiment-latest (evaluated here, not trained by me). A TF-IDF + logistic regression baseline is trained on TweetEval for comparison.
-4. Report: an aspect table (mention counts, % positive/negative, verdict from fixed thresholds computed in code) plus a Gemini-written summary that must cite numbered comments. Automatic checks confirm that cited ids exist, counts match the table, and sentiment tags match.
+1. **Collect.** Top review videos for the search (8 videos, up to 100 top comments each, English only).
+2. **Check the videos.** Optional strict mode drops videos whose titles compare several products.
+3. **Relevance and aspect.** A Gemini classifier keeps comments that are about the product itself and assigns each to one aspect. The aspect list is proposed per product, so it fits a laptop or a car.
+4. **Aspect-level stance.** A second Gemini pass judges positive, negative or neutral toward that aspect, and flags comments that are really about something else.
+5. **Report.** Counts, thin-evidence flags and strength or weakness verdicts are computed in code. The model only writes short summaries, and every comment id it cites is checked against the quotes it was given.
 
-## Results
+## Measured results
 
-All hand-labeled sets use a single annotator (the author), so intervals are wide.
+All numbers come from small hand-labeled samples. Treat them as indications, not guarantees.
 
-| Check | Data | Result |
-|---|---|---|
-| TF-IDF + LogReg baseline | TweetEval test, 12,284 tweets | macro-F1 0.587 |
-| RoBERTa (pretrained) | TweetEval test | macro-F1 0.725 |
-| RoBERTa vs baseline on YouTube | Nike, 137 hand-labeled comments | 0.633 (95% CI 0.55-0.71) vs 0.539 |
-| RoBERTa on a held-out brand | Mahindra Thar, 94 hand-labeled comments | 0.712 (95% CI 0.60-0.80) |
-| Negative-comment recall | Nike 30/50, Thar 11/19 | about 0.6 on both |
-| Relevance filter, development brand | Nike, 161 labeled | off-target 14.9% (keyword filter) to 4.3% (classifier); 96.4% of on-topic comments kept |
-| Relevance filter, held-out | Thar, 100 kept comments | 6.0% off-target (95% CI 3-12%), lenient definition |
-| Aspect assignment | Thar, 60 labeled | right for 79% of genuine product comments (95% CI 66-88%); 20% of sampled comments were questions or reviewer chatter that should not have received an aspect |
-| Report citations | 2 generated reports, AI-assisted review | 8 of 28 praise/complaint clauses had at least one weak or off-target citation |
+| Check | Result |
+|---|---|
+| Fine-tuned RoBERTa vs pretrained model, TweetEval test set (about 12k tweets) | Macro-F1 0.707 vs 0.725; difference -0.018, 95% CI [-0.024, -0.011]. Fine-tuning did not help, so the pretrained model is used. |
+| Same comparison on hand-labeled YouTube comments | Nike (n=137): 0.598 vs 0.633, CI of the difference [-0.117, +0.040]. Thar (n=94): 0.634 vs 0.712, CI [-0.164, +0.002]. Neither interval excludes zero. Negative recall was lower for the fine-tuned model on all three sets. |
+| Relevance filter on 161 hand-labeled Nike comments (deployed prompt) | Off-topic share among kept comments fell from 14.9% to 2.7%. It removed 21 of 24 off-topic comments but kept only 78% of on-target ones. An earlier, looser prompt reached 4.4% off-topic with 96% kept. All 161 comments had already passed an older keyword filter, so comments it wrongly dropped are not measured. |
+| Aspect-level stance vs pretrained RoBERTa, 98 Nike rows | Macro-F1 0.724 vs 0.669; negative recall 0.90 vs 0.64. Hand labels are comment-level while the stance is aspect-level, so this is a rough comparison. |
 
 ## Limitations
 
-- YouTube commenters are not a representative sample of customers, and a brand query mixes several products.
-- Sentiment is scored per comment, not per aspect.
-- The sentiment model catches only about 60% of negative comments, so negative share and weaknesses are likely understated.
-- Questions and reviewer or channel chatter still leak into aspect counts.
-- Upgrade suggestions are hypotheses drawn from a few comments and are not validated. They are only generated for non-borderline weakness aspects.
-- Not tested on Hinglish or non-English comments.
-- LLM free-tier limits and model names change over time.
+- A brand search can cover several models. Strict mode drops comparison videos, but leaves fewer comments.
+- Some off-topic or other-model comments still pass the filters. Spot checks of generated reports found cited comments about other models, about the video itself, or misread. The reports have not been audited claim by claim.
+- Relevance and stance were evaluated on one brand (Nike) only, with small samples.
+- Suggestions are hypotheses drawn from a small set of quoted comments, not validated advice.
+- The public demo limits how many new analyses can run. Brands that were already analyzed load instantly.
 
-## Run it
+## Run locally
 
-Create a .env file with YOUTUBE_API_KEY and GEMINI_API_KEY, then:
 
-    python -m venv venv
-    .\venv\Scripts\Activate.ps1
-    pip install -r requirements.txt
-    python -m streamlit run src\app.py
+Add GEMINI_API_KEY and YOUTUBE_API_KEY to a .env file, then:
 
-Scripts in src: download_data.py, train_baseline.py, eval_roberta.py (TweetEval), collector.py, classify.py, pipeline.py (data), eval_*.py and label_*.py (evaluation and labeling), insights.py and report_check.py (reports).

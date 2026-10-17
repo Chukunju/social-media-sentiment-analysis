@@ -74,6 +74,8 @@ def fetch_youtube_comments(brand, n_videos=8, per_video=100,
                 "video_title": title,
             })
 
+    if not rows:
+        raise ValueError(f"No comments could be collected for '{brand}'. Check the spelling or try a more popular name.")
     df = clean_comments(pd.DataFrame(rows))
     df.to_csv(path, index=False)
     print(f"Collected {len(df)} clean comments for '{brand}' from {len(videos)} videos")
