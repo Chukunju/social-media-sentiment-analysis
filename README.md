@@ -123,13 +123,6 @@ reports/                Saved example reports
 live_cache/             Saved results that open instantly in the app
 ```
 
-## Roadmap
-
-- [ ] Public deployment of the live app
-- [ ] Audit a sample of cited comments by hand and publish the support rate
-- [ ] Label a second brand to check whether the Nike numbers hold
-- [ ] Per-comment model tagging, so a search for one model ignores comments about another
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
